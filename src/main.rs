@@ -55,7 +55,7 @@ const CURRENCY_SUGGESTIONS: &[(&str, &str)] = &[
     name = "podatki",
     version,
     about,
-    after_help = "Приклади:\n  podatki 12.06.2026 USD 1000\n  podatki yesterday EUR 2500,50 --no-esv\n\nАвтодоповнення:\n  fish:  echo 'COMPLETE=fish podatki | source' > ~/.config/fish/completions/podatki.fish\n  zsh:   echo 'source <(COMPLETE=zsh podatki)' >> ~/.zshrc\n  bash:  echo 'source <(COMPLETE=bash podatki)' >> ~/.bashrc"
+    after_help = "Examples:\n  podatki 12.06.2026 USD 1000\n  podatki yesterday EUR 2500,50 --no-esv\n\nCompletions:\n  fish:  echo 'COMPLETE=fish podatki | source' > ~/.config/fish/completions/podatki.fish\n  zsh:   echo 'source <(COMPLETE=zsh podatki)' >> ~/.zshrc\n  bash:  echo 'source <(COMPLETE=bash podatki)' >> ~/.bashrc"
 )]
 struct Cli {
     #[arg(add = ArgValueCandidates::new(date_candidates))]
@@ -68,7 +68,7 @@ struct Cli {
     #[arg(long)]
     no_mil: bool,
     #[arg(long)]
-    no_mono: bool,
+    mono: bool,
     #[arg(short, long, env = "PODATKI_CONFIG", value_hint = ValueHint::FilePath)]
     config: Option<PathBuf>,
 }
@@ -242,7 +242,9 @@ fn run() -> Result<()> {
         width,
     );
 
-    if let (Some(r), false) = (&rate_info, cli.no_mono) {
+    if cli.mono
+        && let Some(r) = &rate_info
+    {
         print_mono(r, amount, t.total, dp, width);
     }
     println!();
