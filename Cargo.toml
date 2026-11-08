@@ -18,3 +18,6 @@ ureq = { version = "3.5.1", features = ["json"] }
 
 [dev-dependencies]
 rust_decimal_macros = "1.40.0"
+
+[profile.release]
+strip = true

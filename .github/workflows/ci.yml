@@ -33,19 +33,23 @@ jobs:
         run: cargo test --locked
 
   build:
-    name: Build (${{ matrix.target }})
+    name: Build (${{ matrix.asset }})
     needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          # Linux builds are static (musl), so they run on any distribution.
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
+            asset: podatki-linux-x86_64
+          - target: aarch64-unknown-linux-musl
             os: ubuntu-24.04-arm
+            asset: podatki-linux-arm64
           - target: x86_64-pc-windows-msvc
             os: windows-latest
+            asset: podatki-windows-x86_64.exe
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -54,27 +58,29 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+      - name: Install musl
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }}
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            # ring (TLS) compiles C code and needs the musl C compiler.
+            export CC_$(echo '${{ matrix.target }}' | tr '-' '_')=musl-gcc
+          fi
+          cargo build --release --locked --target ${{ matrix.target }}
       - name: Package
         shell: bash
         run: |
-          # Versionless names, so releases/latest/download/<name> always works.
-          name="podatki-${{ matrix.target }}"
-          mkdir -p "dist/$name"
-          cp README.md "dist/$name/"
-          cd dist
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cp "../target/${{ matrix.target }}/release/podatki.exe" "$name/"
-            7z a -bd "$name.zip" "$name" > /dev/null
-          else
-            cp "../target/${{ matrix.target }}/release/podatki" "$name/"
-            tar -czf "$name.tar.gz" "$name"
-          fi
-          rm -rf "$name"
+          # A plain executable with a versionless name, so
+          # releases/latest/download/<asset> always points to the latest release.
+          mkdir dist
+          bin="target/${{ matrix.target }}/release/podatki"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then bin="$bin.exe"; fi
+          cp "$bin" "dist/${{ matrix.asset }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: podatki-${{ matrix.target }}
+          name: ${{ matrix.asset }}
           path: dist/*
           if-no-files-found: error
 
